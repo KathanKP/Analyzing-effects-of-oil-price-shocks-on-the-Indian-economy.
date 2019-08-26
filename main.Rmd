@@ -1,0 +1,91 @@
+---
+title: "SOP"
+author: "Kathan"
+date: "1 October 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Study Oriented Project Analysis
+
+This displays all the results and analysis done on the data-set created for the SOP.
+
+```{r,echo=FALSE}
+#Reading in data,modifying it,initiating libraries.
+data<-read.csv("Final_Data.csv")
+data<-data[1:42,]
+suppressWarnings(suppressMessages(library(tseries)))
+suppressWarnings(suppressMessages(library(ggplot2)))
+suppressWarnings(suppressMessages(library(vars)))
+suppressWarnings(suppressMessages(library(urca)))
+for(i in c(3,4,5,6,10)){
+  data[,i]<-log10(data[,i])
+}
+oil<-data[,10]
+agri<-data[,3]
+manu<-data[,4]
+const<-data[,5]
+trans<-data[,6]
+DF<-data.frame(oil,agri,manu,const,trans)
+```
+##Checking Stationarity for all parameters
+###Agriculture
+```{r,echo=FALSE}
+###Agriculture
+suppressWarnings(kpss.test(diff(data[,3])))
+```
+###Manufacturing
+```{r,echo=FALSE}
+###Manufacturing
+suppressWarnings(kpss.test(diff(data[,4])))
+```
+###Construction
+```{r,echo=FALSE}
+###Construction
+suppressWarnings(kpss.test(diff(data[,5])))
+```
+###Transport
+```{r,echo=FALSE}
+###Transport
+suppressWarnings(kpss.test(diff(data[,6])))
+```
+###Oil
+```{r,echo=FALSE}
+###Oil
+suppressWarnings(kpss.test(diff(data[,10])))
+```
+##Co-Integration Tests
+###All 5 parameters taken as a group
+```{r}
+CoInt1<-ca.jo(DF,type="trace",K=2)
+summary(CoInt)
+CoInt2<-ca.jo(DF,type="eigen",K=3,spec="longrun")
+summary(CoInt)
+```
+###Determing proper lag length of the input matrix for VAR Model
+```{r}
+VARselect(data.frame(data[,3],data[,4],data[,5],data[,6],data[,10]))$selection
+```
+###Creating VAR Model
+```{r}
+var_est<-VAR(DF,p=3,type="const")
+VECM<-cajorls(CoInt,r=2)
+VAR<-vec2var(CoInt,r=2)
+summary(VECM)
+```
+###Impulse Response Functions
+```{r}
+irf_est<-irf(var_est,impulse="oil",response=c("agri","manu","const","trans"),n.ahead=3,ortho =TRUE)
+plot(irf_est)
+```
+###Forecast Error Variance Decomposition
+```{r}
+fevd(var_est,n.ahead=3)
+```
+###Granger Causality Tests
+```{r}
+causality(var_est,cause="oil")
+```
